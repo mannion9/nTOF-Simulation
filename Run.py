@@ -1,5 +1,5 @@
 import sys
-sys.path.append('BackEnd/')
+sys.path.append('BackEnd/')   # Givvs Run.py access to files in BackEnd subdirectory
 import math,subprocess
 import PypyNumpy as np
 from time import time as tic
@@ -7,9 +7,8 @@ from math import cos as cos
 from math import sin as sin
 from random import random as ran
 start = tic() 
-'''This block of code imports functions and inputs from the child code'''
+
 from Inputs import *
-import Inputs as me
 from Functions import *
 
 
@@ -56,19 +55,16 @@ def DataBaseChoice(energy,choice,region):
     return angle       
         
 
-cross_sections_t = 0
 ###################################
 ##### Cross Section fits ##########
 ###################################
 def Fits(energy,region):
     global cross_sections_t
-    starting = tic()
     # Fits returing values
     cross_sections = []
     for i in A[region]:
         index = Energy_dic_atoms.index(i)
         cross_sections.append(interpol(energy,Cross_Energy[index],Cross[index],option='linear'))
-    cross_sections_t += tic()-starting
     return cross_sections
    
 
@@ -154,15 +150,14 @@ def Transport(position,energy,theta_momentum,phi_momentum,region,collision_count
 ####################################
 Number = int(Number)                                                    # Number of neutrons to simulate
 # 1 Produced radius shells
-Neutron_Radius = np.vector(linspace(0,me.R0,me.NumberShells))             # Radius to create neutrons at
+Neutron_Radius = np.vector(linspace(0,R0,NumberShells))             # Radius to create neutrons at
 Neutron_Time   = np.vector(linspace(-(TotalBurnSigma/2)*BurnSigma,TotalBurnSigma/2*BurnSigma,math.floor(BurnSigma*TotalBurnSigma/TimeStep)))   # Times to create neutrons at
-N_tot = me.M_hs*me.N_A/(Ratio[0][0]*(me.MH2-me.MH3)+me.MH3)                              # Number Density of fuel
+N_tot = M_hs*N_A/(Ratio[0][0]*(MH2-MH3)+MH3)                              # Number Density of fuel
 
 
-on = tic()
-# Go To child process to integrate dN/dr/dt 
+### Go To child process to integrate dN/dr/dt
 subprocess.call(['python3','Integration.py'])
-# Open file the child process writes out for us
+### Open file the child process writes out for us
 f = open('BirthLocation.txt','r')
 f = f.read().splitlines()
 number_per_r = []
@@ -174,10 +169,7 @@ for line in f:
         row.append(float(i))
     number_per_r.append(row)
     TOTAL += sum(row)
-off = tic()
-print('Time in Child_Integration:',tic()-on)
-print('Estimated Number of neutrons:',TOTAL)
-
+print('Estimated Number of neutrons:',math.floor(TOTAL))
 
 collisions = []
 Timers = []
@@ -187,43 +179,32 @@ collision_count = 0
 OUTPUT = []
 Fusions = [0,0,0]  # Records the number of fusions per each reaction (indexing---> 0=DT,1=DD,2=TT)
 
-
-
-trans = 0
-birthing = 0
-CDF_Creation = 0 
-
 ##################################
 ####### Transport neutrons #######
 ##################################
-TRANSPORT = tic()
 for time in number_per_r:   
     time_now = Neutron_Time[number_per_r.index(time)]
     for radius in time:
         radius_now = Neutron_Radius[time.index(radius)]
         neutron_count = 0
         T_ion = Temp(radius_now,time_now)
-        
-        CDF_t = tic()
         mean = [P_zero_temp[0],P_zero_temp[1]]
-
-        ''' added '''
-        mean = [mean[i] + EnergyToMomentum(ballabio_shift(T_ion,i),Mn)/1000 for i in range(len(mean))]
+        if Ballabio == 1:
+            mean = [mean[i] + EnergyToMomentum(ballabio_shift(T_ion,i),Mn)/1000 for i in range(len(mean))]
             
         sigma = [HatarikInfor(T_ion*1E-3,0),HatarikInfor(T_ion*1E-3,1)] # Tion from keV to MeV
         CDF_0 , x_0 = CreateCDF(HatarikPDF,mean[0]-5*sigma[0],mean[0]+5*sigma[0],N_energy,1,mean[0],sigma[0],skew,kurt) 
         CDF_1 , x_1 = CreateCDF(HatarikPDF,mean[1]-5*sigma[1],mean[1]+5*sigma[1],N_energy,1,mean[1],sigma[1],skew,kurt)
         CDF_2 , x_2 = CreateCDF(tt2n_spectrum[1],tt2n_spectrum[0][0],tt2n_spectrum[0][-1],100,1)
-        CDF_Creation += tic()-CDF_t
         
        # TT2n
         index_temp = min(range(len(tt2n_react[0])),key=lambda i: abs(tt2n_react[0][i]-T_ion))
         tt2n_reactivity = tt2n_react[1][index_temp]
         
-        reaction_list = [0,1,N_i_frac[0][0]*reactivity((np.vector([T_ion])),1)[0]/2/N_i_frac[0][1]/reactivity(np.vector([T_ion]),0)[0],N_i_frac[0][1]*tt2n_reactivity/2/N_i_frac[0][1]/reactivity(np.vector([T_ion]),0)[0],0]
-        
+        reaction_list = [1,N_i_frac[0][0]*reactivity((np.vector([T_ion])),1)[0]/2/N_i_frac[0][1]/reactivity(np.vector([T_ion]),0)[0],N_i_frac[0][1]*tt2n_reactivity/2/N_i_frac[0][1]/reactivity(np.vector([T_ion]),0)[0]]
+        reaction_list = [reaction_list[i]*fusion_list[i] for i in range(len(reaction_list))]
+        reaction_list.append(0),reaction_list.insert(0,0)
         while neutron_count <= math.floor(radius):
-            starterer = tic()
           
             neutron_count += 1
             if repeat == 1:
@@ -242,8 +223,6 @@ for time in number_per_r:
                         CDF_momentum,x_momentum = CDF_1 , x_1
                     Energy = MomentumToEnergy(Choice(CDF_momentum,x_momentum),Mn)*1E6 # eV
                     
-            birthing += tic()-starterer
-            
             Fusions[reaction] += 1
             BirthEnergy = Energy/1E6
             ThetaEmission , PhiEmission, ThetaMomentum, PhiMomentum = Emission()
@@ -254,9 +233,7 @@ for time in number_per_r:
             Timer = 0
             collisions_counter = 0
             scatters = []  
-            
-            tran_start = tic()
-    
+                
             while Position.norm() < Radius[-2]:
                 collision_pre = collisions_counter
                 Position , Tau , Region , Energy ,collision_count,steps,collisions_counter,Theta_momentum,Phi_momentum,Velocity_direction,scatter_atom = Transport(Position,Energy,Theta_momentum,Phi_momentum,Region,collisions_counter)                
@@ -265,9 +242,7 @@ for time in number_per_r:
                      collisions.append(1)
                 Timer += Tau
                 Stepers += steps 
-                
-            trans += tic()-tran_start    
-            
+                            
             scatters.reverse()
             last_atom = 0
             for i in scatters:
@@ -278,12 +253,8 @@ for time in number_per_r:
             Velocity_direction = list(Velocity_direction)
             Output = [reaction,BirthEnergy,collisions_counter,int(last_atom),Energy/1E6,EnergyToVelocity(Energy,Mn),Timer/1E-9,Velocity_direction[0],Velocity_direction[1],Velocity_direction[2]]
             OUTPUT.append(Output)
-print('In transport part of code:',tic()-TRANSPORT)
 
-print('Pick Cross Section:',cross_sections_t)
-print('Time Spent Choosing Fusion type:',birthing)
-print('Time Spent Transporting:',trans)
-print('Number of Mean Free Paths:',COUNT)
+
 
 #################################
 ####### Write out results #######

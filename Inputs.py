@@ -15,11 +15,13 @@ T_max = 5                                           # Maximum temperature of fue
 BurnWidth = 150E-12                                 # FWHM of burn in seconds
 TotalBurnSigma = 10                                 # Number of sigma to create nuetrons at (centered at time=0)
 TimeStep = 1E-12                                    # Time step for creating neutrons
+fusion_list = [1,1,1]                               # Set to zero to shut off reaction [DT,DD,TT]
+Ballabio = 1                                        # Set to 0 for brysk and 1 for ballabio
 
 ###################################
 ######## Aparatus Features ########
 ###################################
-Radius = [25E-6,50E-6,50E-6+70E-6,11,19.98,20,30]                                               # Radius of each region in meters
+Radius = [33E-6,55E-6,55E-6+70E-6,11,19.98,20,30]                                               # Radius of each region in meters
 A = [[2,3],[2,3],[12,1],[1],[16,14,40],[183],[1]]                                               # Atomic mass of each substance with that region
 Ratio = np.vector([[.5,.5],[.5,.5],[(1/(1+1.3)),(1.3/(1+1.3))],[1],[.19,.8,.01],[1],[1]])       # Ratio of each substance that make up material
 Density = np.vector([M_hs/(4*math.pi*(Radius[0]*1E2)**3/3),M_ice/(4*math.pi*(Radius[1]*1E2-Radius[0]*1E2)**3/3),CH_rho_r/(Radius[2]*1E2-Radius[1]*1E2),1E-10,.0012,18.3,1E-10]) #g/cm^3      
