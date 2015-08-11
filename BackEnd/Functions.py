@@ -21,9 +21,10 @@ skew , kurt = 0 , 0
 def ballabio_shift(T_ion,reaction):
     ''' Inputs: T_ion [keV], Fusion Reaction [#]; Outputs: Mean energy shift [MeV] '''
     return alpha[reaction][0][0]*T_ion**(2/3)/(1+alpha[reaction][0][1]*T_ion**alpha[reaction][0][2])+alpha[reaction][0][3]*T_ion
-def HatarikInfor(T_ion,reaction):
-    ''' Inputs: T_ion [keV], Fusion Reaction [#]; Outputs: width of neutron spectrum [MeV] '''
-    return math.sqrt(2*Mn*(math.sqrt(P_zero_temp[reaction]**2+Mn**2)-Mn)*(P_zero_temp[reaction]**2+Mn**2)*(T_ion)/(P_zero_temp[reaction]**2*(Mn+MHe[reaction])))
+def HatarikInfor(T_ion,mean,reaction):
+    ''' Inputs: T_ion [keV], mean momentum [MeV], Fusion Reaction [#]; Outputs: width of neutron spectrum [MeV] '''
+    return 2*Mn*(math.sqrt(mean[reaction]**2+Mn**2)-Mn)*(mean[reaction]**2+Mn**2)*(T_ion)/(mean[reaction]**2*(Mn+MHe[reaction]))    
+    #return 2*Mn*(math.sqrt(P_zero_temp[reaction]**2+Mn**2)-Mn)*(P_zero_temp[reaction]**2+Mn**2)*(T_ion)/(P_zero_temp[reaction]**2*(Mn+MHe[reaction]))
 def HatarikPDF(p,mue,sigma,skew,kurt):
     ''' Inputs: Momentum [MeV], Momentums of distribution; Outputs: Probability of neutron production at inputed momentum '''
     x = (p-mue)/sigma
@@ -68,7 +69,17 @@ def Emission():
         return Choice(CDF_phi,x_phi)
     theta_momentum , phi_momentum = ThetaPick() ,PhiPick()
     return  theta_momentum,phi_momentum,theta_momentum,phi_momentum
-    
+################################
+### Implision Velocity  ######## 
+################################ 
+PeakVelocity = 300E3 
+MaxRadius = Radius[2] # Where does this implosion stop
+def ImplosionVelocity(r,sigma):
+    if isinstance(r,int)==True or isinstance(r,float)==True:
+        return 2/math.sqrt(math.pi)*math.exp(-(r)**2/2/sigma**2)
+    else:
+        return (-1*(r**2)/2/sigma**2).exp()
+
 '''-----------------------------------'''
 ''' General Functions for simulation  '''
 '''-----------------------------------'''
@@ -270,4 +281,5 @@ theta_min , theta_max = 0 , 2*math.pi   # Birth theta limits
 phi_min , phi_max = 0,math.pi           # Birth phi limits
 CDF_theta, x_theta = CreateCDF(ThetaPDF,theta_min,theta_max,N_theta,1)
 CDF_phi , x_phi = CreateCDF(PhiPDF,phi_min,phi_max,N_theta,1)
+ImplosionVelocity,ImplosionRadius = CreateCDF(ImplosionVelocity,0,MaxRadius,100,PeakVelocity,Radius[2]/(2*math.sqrt(2*math.log(2))))
  
