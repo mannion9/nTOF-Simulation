@@ -8,30 +8,37 @@ from DataBaseReadInFunctions import elastic_read_in,scatter_read_in
 ############ Inputs ###############
 ###################################
 Number = 1E6                                        # Number of neutrons to simulate
-M_hs = 15E-6                                        # Total mass of hot spot in grams
-M_ice = 171E-6-M_hs                                 # Mass of ice in grams
-CH_rho_r = 200E-3                                   # Rho*R for ablator in g/cm^2
 T_max = 5                                           # Maximum temperature of fuel in keV
 BurnWidth = 150E-12                                 # FWHM of burn in seconds
 TotalBurnSigma = 10                                 # Number of sigma to create nuetrons at (centered at time=0)
 TimeStep = 1E-12                                    # Time step for creating neutrons
 fusion_list = [1,1,1]                               # Set to zero to shut off reaction [DT,DD,TT]
+
 Ballabio = 1                                        # Set to 0 for brysk and 1 for ballabio
+
+M_hs = 15E-6                                        # Total mass of hot spot in grams
+M_ice = 171E-6-M_hs                                 # Mass of ice in grams
+CH_rho_r = 200E-3                                   # Rho*R for ablator in g/cm^2
+                                       # Set to 0 for brysk and 1 for ballabio
 
 ###################################
 ######## Aparatus Features ########
 ###################################
-Radius = [33E-6,55E-6,55E-6+70E-6,11,19.98,20,30]                                               # Radius of each region in meters
-A = [[2,3],[2,3],[12,1],[1],[16,14,40],[183],[1]]                                               # Atomic mass of each substance with that region
-Ratio = np.vector([[.5,.5],[.5,.5],[(1/(1+1.3)),(1.3/(1+1.3))],[1],[.19,.8,.01],[1],[1]])       # Ratio of each substance that make up material
-Density = np.vector([M_hs/(4*math.pi*(Radius[0]*1E2)**3/3),M_ice/(4*math.pi*(Radius[1]*1E2-Radius[0]*1E2)**3/3),CH_rho_r/(Radius[2]*1E2-Radius[1]*1E2),1E-10,.0012,18.3,1E-10]) #g/cm^3      
+#Radius = [25E-6,50E-6,50E-6+70E-6,11,19.98,20,30]                                               # Radius of each region in meters
+#Density = np.vector([M_hs/(4*math.pi*(Radius[0]*1E2)**3/3),M_ice/(4*math.pi*(Radius[1]*1E2-Radius[0]*1E2)**3/3),CH_rho_r/(Radius[2]*1E2-Radius[1]*1E2),1E-10,.0012,18.3,1E-10]) #g/cm^3 
+#A = [[2,3],[2,3],[12,1],[1],[16,14,40],[183],[1]]                                               # Atomic mass of each substance with that region
+#Ratio = np.vector([[.5,.5],[.5,.5],[(1/(1+1.3)),(1.3/(1+1.3))],[1],[.19,.8,.01],[1],[1]])       # Ratio of each substance that make up material     
+Radius = [25E-6,50E-6,50E-6+70E-6,.5E-2,.5E-2+.5E-3,11,19.98,20,30]                                               # Radius of each region in meters
+Density = np.vector([M_hs/(4*math.pi*(Radius[0]*1E2)**3/3),M_ice/(4*math.pi*(Radius[1]*1E2-Radius[0]*1E2)**3/3),CH_rho_r/(Radius[2]*1E2-Radius[1]*1E2),1E-10,2.7,1E-10,.0012,18.3,1E-10]) #g/cm^3      
+A = [[2,3],[2,3],[12,1],[1],[27],[1],[16,14,40],[183],[1]]                                               # Atomic mass of each substance with that region
+Ratio = np.vector([[.5,.5],[.5,.5],[(1/(1+1.3)),(1.3/(1+1.3))],[1],[1],[1],[.19,.8,.01],[1],[1]])       # Ratio of each substance that make up material
 R0 = Radius[0]                                                                                  # Edge radius of neutron production (largest radius at which a neuutron may be born)
 NumberShells = 50                                                                               # number of shells to break capsul into for temperature gradient
 
 ###################################
 ######## Database Inputs  #########
 ###################################
-Energy_dic_atoms = [2,3,12,1,16,183,14,40]  # This is the databases index for each atom. When adding new elements ensure that the index matches that of this list (rember start at zero)
+Energy_dic_atoms = [2,3,12,1,16,183,14,40,27]  # This is the databases index for each atom. When adding new elements ensure that the index matches that of this list (rember start at zero)
 Energy_dic = [ [] for i in range(len(Energy_dic_atoms))] # Holds all the energy of data that we have for differnetial cross section 
 Cosines = [ [] for i in range(len(Energy_dic_atoms))]
 Probability = [ [] for i in range(len(Energy_dic_atoms))]
@@ -45,6 +52,7 @@ Cross_Energy[4] , Cross[4] = elastic_read_in('DataBase/Elastic/Oxygen-16-Elastic
 Cross_Energy[5] , Cross[5] = elastic_read_in('Database/Elastic/Tun-183-ElasticXC.txt')
 Cross_Energy[6] , Cross[6] = elastic_read_in('Database/Elastic/Nitrogen-14-ElasticXC.txt')
 Cross_Energy[7] , Cross[7] = elastic_read_in('Database/Elastic/Argon-40-ElasticXC.txt')
+Cross_Energy[8] , Cross[8] = elastic_read_in('Database/Elastic/Aluminium-27-ElasticXC.txt')
 ''' Differnetial Scattering Data '''
 Energy_dic[0] , Cosines[0] , Probability[0] = scatter_read_in('DataBase/Scattering/Hydrogen-2-ElasticScatterCrossSection.txt',1)
 Energy_dic[1] , Cosines[1] , Probability[1] = scatter_read_in('DataBase/Scattering/Hydrogen-3-ElasticScatterCrossSection.txt',1)
@@ -54,6 +62,8 @@ Energy_dic[4] , Cosines[4] , Probability[4] = scatter_read_in('DataBase/Scatteri
 Energy_dic[5] , Cosines[5] , Probability[5] = scatter_read_in('DataBase/Scattering/Tungsten-183-ElasticScatterCrossSection.txt',1)
 Energy_dic[6] , Cosines[6] , Probability[6] = scatter_read_in('DataBase/Scattering/Nitrogen-14-ElasticScatterCrossSection.txt',1)
 Energy_dic[7] , Cosines[7] , Probability[7] = scatter_read_in('DataBase/Scattering/Argon-40-ElasticScatterCrossSection.txt',1)
+Energy_dic[8] , Cosines[8] , Probability[8] = scatter_read_in('DataBase/Scattering/Aluminium-27-ElasticScatterCrossSection.txt',1)
+
 ''' Birth Spectrum of T+T->2n+alpha reaction '''
 f = open('Database/tt2n-spec.dat',"r")
 f = f.read().splitlines()
