@@ -93,7 +93,11 @@ def Transport(position,energy,theta_momentum,phi_momentum,region,collision_count
         else:
             implosion_direction = -1*position/radius
         Implosion_Velocity = implosion_velocity*implosion_direction # Vector
+<<<<<<< HEAD
         Velocity = (Velocity+Implosion_Velocity)/(1+(Velocity.norm()*implosion_velocity)/3E16) # Add them
+=======
+        Velocity += Implosion_Velocity # Add them
+>>>>>>> origin/master
         Momentum = Mn*(Velocity/3E8)/math.sqrt(1-(Velocity.dot(Velocity))/(3E8)**2)
         energy = MomentumToEnergy(Momentum.norm(),Mn)*1E6
         
