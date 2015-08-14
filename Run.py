@@ -31,6 +31,11 @@ def ScatteringAngle(energy,choice,region):
     phi = Choice(CDF_theta,x_theta)
     alpha = ((A[region][choice]-1)/(A[region][choice]+1))**2
     energy = .5*energy*((1+alpha)+(1-alpha)*theta)
+    if abs(theta) > 1:
+        if theta < 0:
+            theta = -1
+        else:
+            theta = 1 
     return theta,phi,energy
     
 def DataBaseChoice(energy,choice,region):
@@ -73,7 +78,8 @@ Probs = [ [] for i in range(len(Energy_dic_atoms))]
 CDF =[ [] for i in range(len(Energy_dic_atoms))]
 Energy_current = [ [] for i in range(len(Energy_dic_atoms))]
 
-    
+def BeerLaw(x,mean_free_path):
+    return   1-(-1*x/mean_free_path).exp()      
 
 COUNT = 0   
 ditched = 0
@@ -82,93 +88,75 @@ MaxImplosionRadius = max(ImplosionRadius)
 def Transport(position,energy,theta_momentum,phi_momentum,region,collision_counter,steps):
     global COUNT
     global ditched
-    region = Geometry(position)
-    radius = position.norm()
+
     velocity_direction = np.vector([cos(theta_momentum)*sin(phi_momentum),sin(theta_momentum)*sin(phi_momentum),cos(phi_momentum)])
     Velocity = EnergyToVelocity(energy,Mn)*velocity_direction # vector
-    if steps == 0: # implosion velocity only changes the neutron at birth (aka before any transport so steps==0)
-        implosion_velocity = interpol(position.norm(),ImplosionRadius,ImplosionVelocity)
-        if radius == 0: # If its at the center
-            implosion_direction = -1*velocity_direction
-        else:
-            implosion_direction = -1*position/radius
-        Implosion_Velocity = implosion_velocity*implosion_direction # Vector
-<<<<<<< HEAD
-        Velocity = (Velocity+Implosion_Velocity)/(1+(Velocity.norm()*implosion_velocity)/3E16) # Add them
-=======
-        Velocity += Implosion_Velocity # Add them
->>>>>>> origin/master
-        Momentum = Mn*(Velocity/3E8)/math.sqrt(1-(Velocity.dot(Velocity))/(3E8)**2)
-        energy = MomentumToEnergy(Momentum.norm(),Mn)*1E6
-        
-    xc , atom = CrossSection(energy,region)
     
-    mean_free_path = (1/NDensity[region]/xc)/100  # converts cross section into mean free path in meters
-    geometric_distance = GeometricExpansionSphere(position,Velocity,Radius[region])
+#    if steps == 0: # implosion velocity only changes the neutron at birth (aka before any transport so steps==0)
+#        implosion_velocity = interpol(position.norm(),ImplosionRadius,ImplosionVelocity)
+#        if radius == 0: # If its at the center
+#            implosion_direction = -1*velocity_direction
+#        else:
+#            implosion_direction = -1*position/radius
+#        Implosion_Velocity = implosion_velocity*implosion_direction # Vector
+#        Velocity = (Velocity+Implosion_Velocity)/(1+(Velocity.norm()*implosion_velocity)/3E16) # Add them
+#        Velocity += Implosion_Velocity # Add them
+#        Momentum = Mn*(Velocity/3E8)/math.sqrt(1-(Velocity.dot(Velocity))/(3E8)**2)
+#        energy = MomentumToEnergy(Momentum.norm(),Mn)*1E6
+
+   
     scatter_atom = 0
-    if geometric_distance <= 10E-9:
+    
+    if GeometricExpansionSphere(position,Velocity,Radius[region]) <= 10E-9:
         ''' this is necessary because the GeometricExpansionSphere function find the roots of a polynomial, and 
             finding roots numerically is always difficult and leads to some amount of round off errors, this check
             is to ensure that if you are almost at a boundry there is a good reason to believe that if you are not
             excactly on the boundry, then you are supposed to be on the boundry but round off errors caused you to 
             stay just below the boundry, check accounts for this.'''
         region += 1
-        geometric_distance = GeometricExpansionSphere(position,Velocity,Radius[region])       
-        mean_free_path = (1/NDensity[region]/xc)/100  #cm-->m
-    if mean_free_path < geometric_distance:   
-        COUNT += 1
-        position = position+(Velocity/Velocity.norm())*mean_free_path
-        tau = mean_free_path / Velocity.norm()
-        collision_counter+=1
-        cos_theta_CMF ,phi, energy = ScatteringAngle(energy,atom,region)
-        if abs(cos_theta_CMF) > 1:
-            if cos_theta_CMF < 0:
-                cos_theta_CMF = -1
-            else:
-                cos_theta_CMF = 1
-        cos_theta_lab = (1 + A[region][atom]*cos_theta_CMF)/math.sqrt((A[region][atom]**2)+1+(2*A[region][atom]*cos_theta_CMF))
-        theta_lab = math.acos(cos_theta_lab)
-        theta_momentum += theta_lab
-        scatter_atom = A[region][atom]
+        
+    tau = 0 
+    steps = 0
+    
+    while position.norm() < Radius[region]:#-.00001*Radius[region]:
+        
         steps += 1
-    else:
-        tau = 0
-        while position.norm() < Radius[region]:
-            if energy < 50E3:
-                ditched += 1
-                region = 'Error'   
-                position = np.vector([Radius[-2],0,0])
-                break
-            if steps >= 1:
-                 Velocity = EnergyToVelocity(energy,Mn)*velocity_direction # vector
-                 xc , atom = CrossSection(energy,region)
-            eps = ran()
-            if region == 0:
-                travel = eps*Radius[region]
-            else:    
-                travel = eps*(Radius[region]-Radius[region-1])  
-            position += (Velocity/Velocity.norm())*travel
-            if position.norm() > Radius[-2]:  
-                travel -= position.norm()-Radius[-2]
-                position = np.vector([Radius[-2],0,0]) # forces the neutron to the edge perfectly (I was finding many getting stuck just before the edge)
-            tau += travel/EnergyToVelocity(energy,Mn)
-            p_scatter = (Radius[region]/mean_free_path)*(1-position.norm()/mean_free_path)
-            collision_prob = [0,p_scatter,1-p_scatter,0]
-            choice = DiscreteChoice(collision_prob)
-            if choice == 0:
-                collision_counter += 1
-                cos_theta_CMF ,phi, energy = ScatteringAngle(energy,atom,region)
-                if abs(cos_theta_CMF) > 1:
-                    if cos_theta_CMF < 0:
-                        cos_theta_CMF = -1
-                    else:
-                        cos_theta_CMF = 1   
-                cos_theta_lab = (1 + A[region][atom]*cos_theta_CMF)/math.sqrt((A[region][atom]**2)+1+(2*A[region][atom]*cos_theta_CMF))
-                theta_lab = math.acos(cos_theta_lab)
-                theta_momentum += theta_lab
-                phi_momentum += phi
-                scatter_atom = A[region][atom]
-            steps += 1
+        if energy < 50E3:
+            ditched += 1
+            region = 'Error'   
+            position = np.vector([Radius[-2],0,0])
+            return position , 0 , region ,energy, collision_count,steps,collision_counter,theta_momentum,phi_momentum,velocity_direction,0
+            
+        velocity_direction = np.vector([cos(theta_momentum)*sin(phi_momentum),sin(theta_momentum)*sin(phi_momentum),cos(phi_momentum)])
+        Velocity = EnergyToVelocity(energy,Mn)*velocity_direction # vector
+    
+        xc = (np.vector(Fits(energy,region))*Ratio[region]).average()*BarnToCmSquare
+        mean_free_path = (1/NDensity[region]/xc)/100  # converts cross section into mean free path in meters
+        x = np.vector(linspace(0,5*mean_free_path,100))
+        step = Choice(BeerLaw(x,mean_free_path),x)        
+        geometric_distance = GeometricExpansionSphere(position,Velocity,Radius[region])
+        if step < geometric_distance:
+            COUNT += 1
+            collision_counter += 1
+            position += step*Velocity/Velocity.norm()
+            tau += step/Velocity.norm()
+            xc , atom = CrossSection(energy,region)
+            cos_theta_CMF ,phi, energy = ScatteringAngle(energy,atom,region)
+            if abs(cos_theta_CMF) > 1:
+                if cos_theta_CMF < 0:
+                    cos_theta_CMF = -1
+                else:
+                    cos_theta_CMF = 1   
+            cos_theta_lab = (1 + A[region][atom]*cos_theta_CMF)/math.sqrt((A[region][atom]**2)+1+(2*A[region][atom]*cos_theta_CMF))
+            theta_lab = math.acos(cos_theta_lab)
+            theta_momentum += theta_lab
+            phi_momentum += phi
+            scatter_atom = A[region][atom]
+        else:
+            position += (geometric_distance)*Velocity/Velocity.norm()
+            tau += geometric_distance/Velocity.norm()
+            break
+
     return position , tau , region ,energy, collision_count,steps,collision_counter,theta_momentum,phi_momentum,velocity_direction,scatter_atom
     
     
@@ -198,7 +186,8 @@ for line in f:
     number_per_r.append(row)
     TOTAL += sum(row)
 print('Estimated Number of neutrons:',math.floor(TOTAL))
-
+print(' ')
+print('Percent complete:')
 collisions = 0
 Timers = []
 Stepers = 0
@@ -206,13 +195,14 @@ repeat=0
 collision_count = 0
 OUTPUT = []
 Fusions = [0,0,0]  # Records the number of fusions per each reaction (indexing---> 0=DT,1=DD,2=TT)
-
+RUNNER = 0
 ##################################
 ####### Transport neutrons #######
 ##################################
-for time in number_per_r:   
+for time in number_per_r: 
     time_now = Neutron_Time[number_per_r.index(time)]
-    for radius in time:
+    for radius in time:       
+        
         radius_now = Neutron_Radius[time.index(radius)]
         neutron_count = 0
         T_ion = Temp(radius_now,time_now)
@@ -232,8 +222,10 @@ for time in number_per_r:
         reaction_list = [1,N_i_frac[0][0]*reactivity((np.vector([T_ion])),1)[0]/2/N_i_frac[0][1]/reactivity(np.vector([T_ion]),0)[0],N_i_frac[0][1]*tt2n_reactivity/2/N_i_frac[0][1]/reactivity(np.vector([T_ion]),0)[0]]
         reaction_list = [reaction_list[i]*fusion_list[i] for i in range(len(reaction_list))]
         reaction_list.append(0),reaction_list.insert(0,0)
+        sys.stdout.write("\r%d%%" % math.floor(RUNNER/math.floor(TOTAL)*100))
+        sys.stdout.flush() 
         while neutron_count <= math.floor(radius):
-          
+            RUNNER += 1
             neutron_count += 1
             if repeat == 1:
                 Energy = Choice(CDF_2,x_2)*1E6  # eV
@@ -263,17 +255,20 @@ for time in number_per_r:
             steps = 0
             collisions_counter = 0
             scatters = []  
-            while Position.norm() < Radius[-2]:
+            #while Position.norm() < Radius[-2]:
+            while Region < len(Radius)-1:
                 collision_pre = collisions_counter
                 Position , Tau , Region , Energy ,collision_count,steps,collisions_counter,Theta_momentum,Phi_momentum,Velocity_direction,scatter_atom = Transport(Position,Energy,Theta_momentum,Phi_momentum,Region,collisions_counter,steps)                
+                if type(Region) == int:                
+                    Region += 1   
+                else:
+                    break
                 scatters.append(scatter_atom)                
                 if collisions_counter > collision_pre:
                      collisions += 1
                 Timer += Tau
                 Stepers += steps 
-    
-                
-
+                    
             if Region != 'Error':
                 scatters.reverse()
                 last_atom = 0
@@ -284,8 +279,7 @@ for time in number_per_r:
                 Velocity_direction = list(Velocity_direction)
                 Output = [reaction,BirthEnergy,int(collisions_counter),int(last_atom),Energy/1E6,EnergyToVelocity(Energy,Mn),Timer/1E-9,Velocity_direction[0],Velocity_direction[1],Velocity_direction[2]]
                 OUTPUT.append(Output)
-            else:
-                collisions -= collisions_counter
+
 
 
 

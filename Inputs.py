@@ -17,9 +17,10 @@ fusion_list = [1,1,1]                               # Set to zero to shut off re
 Ballabio = 1                                        # Set to 0 for brysk and 1 for ballabio
 
 M_hs = 15E-6                                        # Total mass of hot spot in grams
+
 M_ice = 171E-6-M_hs                                 # Mass of ice in grams
+#Ice_rho_r = 1
 CH_rho_r = 200E-3                                   # Rho*R for ablator in g/cm^2
-                                       # Set to 0 for brysk and 1 for ballabio
 
 ###################################
 ######## Aparatus Features ########
@@ -28,8 +29,9 @@ CH_rho_r = 200E-3                                   # Rho*R for ablator in g/cm^
 #Density = np.vector([M_hs/(4*math.pi*(Radius[0]*1E2)**3/3),M_ice/(4*math.pi*(Radius[1]*1E2-Radius[0]*1E2)**3/3),CH_rho_r/(Radius[2]*1E2-Radius[1]*1E2),1E-10,.0012,18.3,1E-10]) #g/cm^3 
 #A = [[2,3],[2,3],[12,1],[1],[16,14,40],[183],[1]]                                               # Atomic mass of each substance with that region
 #Ratio = np.vector([[.5,.5],[.5,.5],[(1/(1+1.3)),(1.3/(1+1.3))],[1],[.19,.8,.01],[1],[1]])       # Ratio of each substance that make up material     
-Radius = [25E-6,50E-6,50E-6+70E-6,.5E-2,.5E-2+.5E-3,11,19.98,20,30]                                               # Radius of each region in meters
-Density = np.vector([M_hs/(4*math.pi*(Radius[0]*1E2)**3/3),M_ice/(4*math.pi*(Radius[1]*1E2-Radius[0]*1E2)**3/3),CH_rho_r/(Radius[2]*1E2-Radius[1]*1E2),1E-10,2.7,1E-10,.0012,18.3,1E-10]) #g/cm^3      
+Radius = [33E-6,53E-6,53E-6+70E-6,.5E-2,.5E-2+.5E-3,11,19.98,20,30]                                               # Radius of each region in meters
+Density = np.vector([M_hs/(4*math.pi*(Radius[0]*1E2)**3/3),M_ice/(4*math.pi*((Radius[1]*1E2)**3-(Radius[0]*1E2)**3)/3),CH_rho_r/(Radius[2]*1E2-Radius[1]*1E2),1E-10,2.7,1E-10,.0012,18.3,1E-10]) #g/cm^3      
+#Density = np.vector([M_hs/(4*math.pi*(Radius[0]*1E2)**3/3),Ice_rho_r/(Radius[1]*1E2-Radius[0]*1E2),CH_rho_r/(Radius[2]*1E2-Radius[1]*1E2),1E-10,2.7,1E-10,.0012,18.3,1E-10]) #g/cm^3      
 A = [[2,3],[2,3],[12,1],[1],[27],[1],[16,14,40],[183],[1]]                                               # Atomic mass of each substance with that region
 Ratio = np.vector([[.5,.5],[.5,.5],[(1/(1+1.3)),(1.3/(1+1.3))],[1],[1],[1],[.19,.8,.01],[1],[1]])       # Ratio of each substance that make up material
 R0 = Radius[0]                                                                                  # Edge radius of neutron production (largest radius at which a neuutron may be born)
@@ -90,7 +92,8 @@ MH3 = 3.0155007134*Amu                                      # Tritium mass
 MHe3 = 3.0149322473*Amu                                     # Helium 3 mass
 MHe4 = 4.001506179127*Amu                                   # Helium 4 mass
 
-NDensity = [ Density[i]*N_A/sum(A[i]) for i in range(len(Radius)) ]
+MassFraction = [[mass*fraction for mass,fraction in zip(A[i],Ratio[i])] for i in range(len(A))]
+NDensity=[Density[i]*N_A/sum(MassFraction[i]) for i in range(len(Radius))]
 N_i_frac = [[NDensity[i]*Ratio[i][j] for j in range(len(Ratio[i]))] for i in range(len(Ratio))]
 MHe = [MHe4,MHe3]
 Q_values = [(MH2+MH3)-(MHe4+Mn),((MH2+MH2)-(Mn+MHe3))]                                 # Q values
