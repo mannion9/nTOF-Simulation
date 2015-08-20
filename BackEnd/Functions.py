@@ -24,7 +24,6 @@ def ballabio_shift(T_ion,reaction):
 def HatarikInfor(T_ion,mean,reaction):
     ''' Inputs: T_ion [keV], mean momentum [MeV], Fusion Reaction [#]; Outputs: width of neutron spectrum [MeV] '''
     return 2*Mn*(math.sqrt(mean[reaction]**2+Mn**2)-Mn)*(mean[reaction]**2+Mn**2)*(T_ion)/(mean[reaction]**2*(Mn+MHe[reaction]))    
-    #return 2*Mn*(math.sqrt(P_zero_temp[reaction]**2+Mn**2)-Mn)*(P_zero_temp[reaction]**2+Mn**2)*(T_ion)/(P_zero_temp[reaction]**2*(Mn+MHe[reaction]))
 def HatarikPDF(p,mue,sigma,skew,kurt):
     ''' Inputs: Momentum [MeV], Momentums of distribution; Outputs: Probability of neutron production at inputed momentum '''
     x = (p-mue)/sigma
@@ -49,7 +48,7 @@ def Temp(r,time):
 def Delta_Number(radius,time,reaction):
     ''' Inputs: Radius [m], Time [s], Reaction [#]; Outputs: dN produced at inputted Radius and Temp '''
     constant = 1
-    if reaction == 1 or reaction == 2: # if a DD or TT fusion reaction occurs the weighting goes down by a factor of 2
+    if reaction == 1 or reaction == 2: # if a DD or TT fusion reaction occurs the weighting goes down by a factor of 2 because of the 1/(1+delta)
         constant = .5
     return constant*(reactivity(Temp(radius,time),reaction)*N_i_frac[0][0]*N_i_frac[0][1]*4*math.pi*radius**2)
 def Theta(T,reaction):
@@ -67,22 +66,20 @@ def Emission():
         return Choice(CDF_theta,x_theta)
     def PhiPick():
         return Choice(CDF_phi,x_phi)
-    theta_momentum , phi_momentum = ThetaPick() ,PhiPick()
+    theta_momentum , phi_momentum = ThetaPick() ,PhiPick()  # The neutrons inital velocity is isotropically outwards
     return  theta_momentum,phi_momentum,theta_momentum,phi_momentum
 ################################
 ### Implision Velocity  ######## 
 ################################ 
-PeakVelocity = 300E3 
-MaxRadius = Radius[2] # Where does this implosion stop
 def ImplosionVelocity(r,sigma):
     if isinstance(r,int)==True or isinstance(r,float)==True:
         return 2/math.sqrt(math.pi)*math.exp(-(r)**2/2/sigma**2)
     else:
         return (-1*(r**2)/2/sigma**2).exp()
 
-'''-----------------------------------'''
-''' General Functions for simulation  '''
-'''-----------------------------------'''
+'''--------------------------------------'''
+''' General Functions used in simulation '''
+'''--------------------------------------'''
 
 ####################################
 ##### Energy <-> Velocity ##########
@@ -186,14 +183,33 @@ def Hermite(n,x):
 def Geometry(position):
     ''' Inputs: Position [type=Vector of length 3]; Output: Index of geometric region [type=int] '''    
     radius = math.sqrt(position[0]**2 + position[1]**2 + position[2]**2)
-    def checker(x,check):
-        for i in check:
-            if i < x:
-                checker(x,check[:-check.index(i)])
-            else:
-                return check.index(i)
-        return len(check)-1
-    return checker(radius,Radius)
+    return bisect_left(Radius,radius)
+#    def checker(x,check):
+#        for i in check:
+#            if i < x:
+#                checker(x,check[:-check.index(i)])
+#            else:
+#                return check.index(i)
+#        return len(check)-1
+#    return checker(radius,Radius)
+def GeometricDistance(position,velocity,region):
+    if region == 0:
+        return GeometricExpansionSphere(position,velocity,Radius[region])
+    root1 = GeometricExpansionSphere(position,velocity,Radius[region])
+    root2 = GeometricExpansionSphere(position,velocity,Radius[region-1])
+    if type(root1) == str:
+        if type(root2) == str:
+            return 'Negative'
+        else:
+            return root2
+    if type(root2) == str:
+        if type(root1) == str:
+            return 'Negative'
+        else:
+            return root1
+    elif root1 < root2:
+        return root1
+    else: return root2   
 def GeometricExpansionSphere(position,velocity,radius):
     ''' Inputs: position [type vector of length 3], velocity [type=vector of length 3], radius of spherical shell[type=float];
         Outputs: the minimum distance to the geometrical boudnary'''
@@ -201,21 +217,36 @@ def GeometricExpansionSphere(position,velocity,radius):
     coef_1 = vel_unit[0]**2 + vel_unit[1]**2 + vel_unit[2]**2
     coef_2 = 2 * (position[0]*vel_unit[0]+position[1]*vel_unit[1]+position[2]*vel_unit[2])
     coef_3 = position[0]**2 + position[1]**2 + position[2]**2- radius **2
-    root1  = (-coef_2 + math.sqrt(coef_2**2 - 4*coef_1*coef_3)) / 2*coef_1
-    root2  = (-coef_2 - math.sqrt(coef_2**2 - 4*coef_1*coef_3)) / 2*coef_1   
+    if coef_2**2 - 4*coef_1*coef_3 < 0:
+        root1 , root2 = 'Imaginary' , 'Imaginary'
+    else:
+        root1  = (-coef_2 + math.sqrt(coef_2**2 - 4*coef_1*coef_3)) / 2*coef_1
+        root2  = (-coef_2 - math.sqrt(coef_2**2 - 4*coef_1*coef_3)) / 2*coef_1   
     ''' Ensures that the vector is on the boundary, but round off errors make it negative, that we choose it anyways '''
-    if root1 < 0 and root2 < 0:
-        if abs(root1) < 1E-10:
-            return root1
+    if root1 == 'Imaginary':
+        return 'Imaginary'
+    if abs(root1) < 1E-10:
         if abs(root2) < 1E-10:
-            return root2
-    elif root1 < 0:
-        root1 = 1E12
-    elif root2 < 0:
-        root2 = 1E12
-    if root1 < root2:
-        return root1
-    else: return root2  
+            if abs(root1) < abs(root2):
+                return root1
+            else:
+                return root2
+        else:
+            return abs(root1)
+    else:       
+        if root1 < 0:
+            if root2 < 0:
+                return 'Negative'
+            else:
+                return root2
+        elif root2 < 0:
+            if root1 < 0 :
+                return 'Negative'
+            else:
+                return root1
+        elif root1 < root2:
+            return root1
+        else: return root2  
 ###################################
 ### Creating CDF's ################
 ###################################
